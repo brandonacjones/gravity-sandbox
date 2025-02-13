@@ -8,22 +8,27 @@ const int SCREEN_WIDTH = 1400;
 const int SCREEN_HEIGHT = 1000;
 
 // UI Parameters
-const Color UI_MENU_BG = GetColor(0xBFBFBFFF);
-const Color UI_CHECK_BG;
+const Color UI_MENU_BG = GetColor(0x262626FF);
+const Color UI_CHECKBOX_BG = GetColor(0x3A3A3AFF);
+const Color UI_CHECKBOX_ACTIVE = GetColor(0xBB86FCFF);
+const Color UI_CHECKBOX_INACTIVE = GetColor(0x555555FF);
+const Color UI_TEXT = GetColor(0xE0E0E0FF);
 
 // Sim Parameters
 const int SIM_WIDTH = 1000;
 const int SIM_HEIGHT = 1000;
 const float SIM_WIDTH_HALF = SIM_WIDTH / 2.0f;
 const float SIM_HEIGHT_HALF = SIM_HEIGHT / 2.0f;
-const float G = 6.67430e-11;
+const float G = 6.67430e-8;
 const float MIN_DISTANCE_SQUARED = 0.1f; // Threshold to avoid division by zero in calculations.
-const float VECTOR_DRAW_SCALE = 1000.0f;
-const Color SIM_BG_COL = GetColor(0x333333FF);
+const float VECTOR_DRAW_SCALE = 50.0f;
+const float GRID_SQUARE_SIZE = 5.0f;
+const Color SIM_BG_COL = GetColor(0x020202FF);
 const Color SIM_BDY_COL = GetColor(0xC9C9C9FF);
 const Color SIM_SPAWN_BDY_COL = GetColor(0xB09C02FF);
 const Color SIM_SPAWN_VEL_COL = GetColor(0xB09C02FF); //0xE3D98DFF
 bool showVectors = false;
+bool showField = false;
 
 enum State {
 	DEFAULT,
@@ -87,12 +92,12 @@ struct CheckBox {
 	CheckBox(int x, int y) : x(x), y(y) {};
 
 	void draw() {
-		DrawRectangle(x, y, width, height, GREEN);
+		DrawRectangle(x, y, width, height, UI_CHECKBOX_BG);
 		if (active) {
-			DrawRectangle(x + 3, y + 3, inWidth, inHeight, RED);
+			DrawRectangle(x + 3, y + 3, inWidth, inHeight, UI_CHECKBOX_ACTIVE);
 		}
 		else {
-			DrawRectangle(x + 3, y + 3, inWidth, inHeight, BLUE);
+			DrawRectangle(x + 3, y + 3, inWidth, inHeight, UI_CHECKBOX_INACTIVE);
 		}
 	}
 
@@ -248,10 +253,10 @@ struct bodySpawner {
 				else if (state == State::DRAWING) {
 
 					// Update Values for tempBody
-					lastRad += 0.001f;
+					lastRad += 0.1f;
 					lastMass = (4.0f / 3.0f) * PI * (lastRad * lastRad * lastRad) * 20000.0f; // Mass is based on 10000 kg per pixel volume in a sphere.
 
-					velocity = { (fabs(currMouseLoc.x) - fabs(startLoc.x)) * 0.0001f, (fabs(currMouseLoc.y) - fabs(startLoc.y)) * 0.0001f }; // Based of vector components of line from startLoc to currMouseLoc
+					velocity = { (fabs(currMouseLoc.x) - fabs(startLoc.x)) * 0.01f, (fabs(currMouseLoc.y) - fabs(startLoc.y)) * 0.01f }; // Based of vector components of line from startLoc to currMouseLoc
 
 					DrawCircle(startLoc.x, startLoc.y, lastRad, SIM_SPAWN_BDY_COL);
 					DrawLine(startLoc.x, startLoc.y, currMouseLoc.x, currMouseLoc.y, SIM_SPAWN_VEL_COL);
@@ -266,37 +271,103 @@ struct bodySpawner {
 	}
 };
 
-struct gravGrid {};
-
 struct gridSquare {
-	float totalForce = 0.0f;
+	float fieldStrength = 0.0f;
 	float x;
 	float y;
 	float width = GRID_SQUARE_SIZE;
-}
+	float height = GRID_SQUARE_SIZE;
+
+	gridSquare() {};
+	gridSquare(float x, float y) : x(x), y(y) {};
+};
+
+struct gravGrid {
+	int numSquares = SIM_WIDTH / GRID_SQUARE_SIZE;
+	std::vector<std::vector<gridSquare>> gridSquares;
+
+	gravGrid() {
+		gridSquares.resize(numSquares);
+		for (size_t row = 0; row < numSquares; ++row) {
+			gridSquares[row].resize(numSquares);
+			for (size_t col = 0; col < numSquares; ++col) {
+				gridSquares[row][col] = gridSquare(col * GRID_SQUARE_SIZE, row * GRID_SQUARE_SIZE);
+			}
+		}
+	}
+
+	void updateForces(std::vector<Body>& bodies) {
+		for (auto& row : gridSquares) {
+			for (auto& square : row) {
+				// Reset force to 0 for each frame
+				square.fieldStrength = 0.0f;
+				for (const auto& body : bodies) { // Get the force from each body
+
+					// Find closest distance to each body
+					float rawDx = square.x + GRID_SQUARE_SIZE / 2.0f - body.location.x;
+					float rawDy = square.y + GRID_SQUARE_SIZE / 2.0f -body.location.y;
+
+					// Accound for screen wrap-around if shortest distance is not screen-space.
+					float dx = std::min(std::fabs(rawDx), SIM_WIDTH - std::fabs(rawDx));
+					float dy = std::min(std::fabs(rawDy), SIM_HEIGHT - std::fabs(rawDy));
+
+					float distanceSquared = (dx * dx) + (dy * dy);
+
+					// Gravitational force
+					if (distanceSquared > MIN_DISTANCE_SQUARED) {
+						square.fieldStrength += G * body.mass / distanceSquared;
+					}
+				}
+			}
+		}
+	}
+
+	void draw() {
+		for (const auto& row : gridSquares) {
+			for (const auto& square : row) {
+				float scaledStrength = square.fieldStrength * 1e2;
+				float normalizedStrength = std::min(1.0f, scaledStrength);
+				Color color = ColorFromNormalized({ normalizedStrength , 0.0f ,1.0f / normalizedStrength , normalizedStrength });
+				DrawRectangle(square.x, square.y, square.width, square.height, color);
+			}
+		}
+	}
+
+};
 
 int main(void) {
 	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Gravity");
+	SetTargetFPS(60);
 
-	Vector2 buttonLoc = { 100.0f, 100.0f };
-	Button testButton(buttonLoc, 50.0f, 100.0f, "TEST");
+	// <--- Init Sim --->
 	bodySpawner spawner;
+	gravGrid gravityField;
 
-	CheckBox testBox(SIM_WIDTH + 250, 50);
+	// <--- Init UI --->
+	CheckBox vectorCheck(SIM_WIDTH + 250, 50);
+	CheckBox fieldCheck(SIM_WIDTH + 250, 100);
 
 	while (!WindowShouldClose()) {
+
+		// <--- Update Sim --->
+		gravityField.updateForces(bodies);
+		showVectors = vectorCheck.isChecked();
+		showField = fieldCheck.isChecked();
+
+		// <--- Update UI --->
+		vectorCheck.check();
+		fieldCheck.check();
+
 		BeginDrawing();
 		ClearBackground(SIM_BG_COL);
 
 		spawner.drawBody();
 
-		testBox.check();
-		if (testBox.isChecked()) {
-			showVectors = true;
-		}
-		else if (!testBox.isChecked()) {
-			showVectors = false;
-		}
+		if (showField) gravityField.draw();
+		
+
+		
+		
 		
 
 		// Iterate over each unique pair of bodies.
@@ -355,10 +426,22 @@ int main(void) {
 			body.draw();
 		}
 
-		// Draw UI on top
+		// <--- Draw UI --->
+		
+		// Menu Background
 		DrawRectangle(SIM_WIDTH, 0.0f, SCREEN_WIDTH - SIM_WIDTH, SCREEN_HEIGHT, UI_MENU_BG);
-		DrawText("Show Vectors", SIM_WIDTH + 50, 50, 25, BLACK);
-		testBox.draw();
+
+		// Show framerate
+		int fps = GetFPS();
+		DrawText(TextFormat("%i FPS", fps), 10, 10, 20, YELLOW);
+
+		// Show Vectors option
+		DrawText("Show Vectors", SIM_WIDTH + 50, 50, 25, UI_TEXT);
+		vectorCheck.draw();
+
+		// Show Field Option
+		DrawText("Show Field", SIM_WIDTH + 50, 100, 25, UI_TEXT);
+		fieldCheck.draw();
 
 		EndDrawing();
 	}
