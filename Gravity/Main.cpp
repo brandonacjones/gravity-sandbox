@@ -14,8 +14,8 @@ const Color UI_CHECKBOX_BG = GetColor(0x3A3A3AFF);				// Checkbox Background Col
 const Color UI_CHECKBOX_ACTIVE = GetColor(0xBB86FCFF);			// Active checkbox Color
 const Color UI_CHECKBOX_INACTIVE = GetColor(0x555555FF);		// Inactive checkbox Color
 const Color UI_TEXT = GetColor(0xE0E0E0FF);						// Default Text
-const Color UI_BUTTON_UNCLKD = GetColor(0xE0E0E0FF);			// Unclicked Button Color
-const Color UI_BUTTON_UNCLKD_TXT = GetColor(0x333333FF);		// Unclicked Button Text
+const Color UI_BUTTON_UNCLKD = GetColor(0x3A3A3AFF);			// Unclicked Button Color
+const Color UI_BUTTON_UNCLKD_TXT = GetColor(0xE0E0E0FF);		// Unclicked Button Text
 const Color UI_BUTTON_HVR = GetColor(0xBDBDBDFF);				// Hovered Button Color
 const Color UI_BUTTON_HVR_TXT = GetColor(0x000000FF);			// Hovered Button Text
 const Color UI_BUTTON_CLKD = GetColor(0x9E9E9EFF);				// Clicked Button Color
@@ -36,7 +36,7 @@ const Color SIM_SPAWN_BDY_COL = GetColor(0xB09C02FF);			// Spawn body color
 const Color SIM_SPAWN_VEL_COL = GetColor(0xB09C02FF);			// Spawn vector color
 bool showVectors = false;										// Control vector visibility
 bool showField = false;											// Control gravity field visibility
-
+int fieldScalar = 1;											// Gravity field visualization sensitivity
 enum State {													// State to track if user is spawning a body
 	DEFAULT,
 	SPAWNING
@@ -63,19 +63,19 @@ struct Button {
 
 	// Draw Button using raylib primitives
 	void DrawButton() const {
-		int textWidth = MeasureText(message.c_str(), height / 3.0f);
+		int textWidth = MeasureText(message.c_str(), height / 2.0f);
 		Vector2 mousePos = GetMousePosition();
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { x, y, width, height })) {
 			DrawRectangle(x, y, width, height, UI_BUTTON_CLKD);
-			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 3.0f, UI_BUTTON_CLKD_TXT);
+			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 2.0f, UI_BUTTON_CLKD_TXT);
 		}
 		else if (CheckCollisionPointRec(mousePos, { x, y, width, height })) {
 			DrawRectangle(x, y, width, height, UI_BUTTON_HVR);
-			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 3.0f, UI_BUTTON_HVR_TXT);
+			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 2.0f, UI_BUTTON_HVR_TXT);
 		}
 		else {
 			DrawRectangle(x, y, width, height, UI_BUTTON_UNCLKD);
-			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 3.0f, UI_BUTTON_UNCLKD_TXT);
+			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 2.0f, UI_BUTTON_UNCLKD_TXT);
 		}
 	}
 
@@ -345,14 +345,14 @@ struct fieldGrid {
 	void draw() {
 		for (const auto& row : fieldCells) {
 			for (const auto& square : row) {
-				float scaledStrength = square.fieldStrength * 1e2;
+				float scaledStrength = square.fieldStrength * fieldScalar * fieldScalar;
 				float normalizedStrength = std::min(1.0f, scaledStrength);
-				Color color = ColorFromNormalized({ normalizedStrength , 0.0f ,1.0f / normalizedStrength , normalizedStrength });
+				
+				Color color = ColorFromNormalized({ normalizedStrength, 0.0f , 1.0f / normalizedStrength, normalizedStrength });
 				DrawRectangle(square.x, square.y, square.width, square.height, color);
 			}
 		}
 	}
-
 };
 
 int main(void) {
@@ -368,6 +368,8 @@ int main(void) {
 	// Initialize UI Elements
 	CheckBox vectorCheck(SIM_WIDTH + 250, 50);
 	CheckBox fieldCheck(SIM_WIDTH + 250, 100);
+	Button minusFieldStrength(SIM_WIDTH + 50, 200, 40, 40, "-");
+	Button plusFieldStrength(SIM_WIDTH + 300, 200, 40, 40, "+");
 	Button resetSim(SIM_WIDTH + 100, SIM_HEIGHT - 100, 50, 200, "Reset Sim");
 
 	// Simulation Loop
@@ -382,11 +384,12 @@ int main(void) {
 		vectorCheck.check();
 		fieldCheck.check();
 
+		// Listen for field scalar adjustment
+		if (minusFieldStrength.isClicked() && fieldScalar > 1) fieldScalar -= 1;
+		if (plusFieldStrength.isClicked()) fieldScalar += 1;
+
 		BeginDrawing();
 		ClearBackground(SIM_BG_COL);
-
-		// Enable Body Spawning
-		spawner.drawBody(bodies);
 
 		// Draw Vectors or Gravity Field
 		if (showField) gravityField.draw();
@@ -455,6 +458,9 @@ int main(void) {
 			body.draw();
 		}
 
+		// Draw Body Spawning
+		spawner.drawBody(bodies);
+
 		// <--- Draw UI --->
 		
 		// Menu Background
@@ -471,6 +477,12 @@ int main(void) {
 		// Show Field Option
 		DrawText("Show Field", SIM_WIDTH + 50, 100, 25, UI_TEXT);
 		fieldCheck.draw();
+
+		// Show Field Strength
+		DrawText("Field Strength Scalar", SIM_WIDTH + 50, 150, 25, UI_TEXT);
+		minusFieldStrength.DrawButton();
+		DrawText(TextFormat("%i ^ 2", fieldScalar), SIM_WIDTH + 175, 200, 25, UI_TEXT);
+		plusFieldStrength.DrawButton();
 
 		// Show Reset Button
 		resetSim.DrawButton();
