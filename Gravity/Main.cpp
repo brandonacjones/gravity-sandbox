@@ -202,7 +202,7 @@ struct Body {
 
 	static bool checkCollision(const Body& body1, const Body& body2) {
 
-		// Precompute raw dx and dy for performance
+		// Precompute raw dx and dy to avoid redundant calculation
 		float rawDx = body2.location.x - body1.location.x;
 		float rawDy = body2.location.y - body1.location.y;
 
@@ -213,7 +213,10 @@ struct Body {
 
 		float distanceSquared = (dx * dx) + (dy * dy); // Calculate the combined distance of each component squared
 
-		return distanceSquared <= (body1.radius + body1.radius) * (body2.radius + body2.radius); // Compare this to the minimum collision distance squared.
+		// Precompute sum of radii to avoid redundant calculation
+		float radiiSum = body1.radius + body2.radius;
+
+		return distanceSquared <= (radiiSum) * (radiiSum); // Compare this to the minimum collision distance squared.
 	}
 };
 
