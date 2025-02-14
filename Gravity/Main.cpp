@@ -13,10 +13,16 @@ const Color UI_CHECKBOX_BG = GetColor(0x3A3A3AFF);
 const Color UI_CHECKBOX_ACTIVE = GetColor(0xBB86FCFF);
 const Color UI_CHECKBOX_INACTIVE = GetColor(0x555555FF);
 const Color UI_TEXT = GetColor(0xE0E0E0FF);
+const Color UI_BUTTON_UNCLKD = GetColor(0xE0E0E0FF);
+const Color UI_BUTTON_UNCLKD_TXT = GetColor(0x333333FF);
+const Color UI_BUTTON_HVR = GetColor(0xBDBDBDFF);
+const Color UI_BUTTON_HVR_TXT = GetColor(0x000000FF);
+const Color UI_BUTTON_CLKD = GetColor(0x9E9E9EFF);
+const Color UI_BUTTON_CLKD_TXT = GetColor(0xFFFFFFFF);
 
 // Sim Parameters
-const int SIM_WIDTH = 1000;
-const int SIM_HEIGHT = 1000;
+const int SIM_WIDTH = SCREEN_WIDTH - 400;
+const int SIM_HEIGHT = SCREEN_HEIGHT;
 const float SIM_WIDTH_HALF = SIM_WIDTH / 2.0f;
 const float SIM_HEIGHT_HALF = SIM_HEIGHT / 2.0f;
 const float G = 6.67430e-8;
@@ -39,19 +45,14 @@ enum State {
 
 struct Button {
 	const std::string message;
-	const Vector2 location;
+	const float x;
+	const float y;
 	const float width;
-	const float height;
-	const Color unclickedColor = GetColor(0xE0E0E0FF);
-	const Color unclickedText = GetColor(0x333333FF);
-	const Color hoverColor = GetColor(0xBDBDBDFF);
-	const Color hoverText = GetColor(0x000000FF);
-	const Color clickColor = GetColor(0x9E9E9EFF);
-	const Color clickText = GetColor(0xFFFFFFFF);
-	
+	const float height;	
 
-	Button(Vector2 loc, float h, float w, const std::string& m) :
-		location(loc),
+	Button(float x, float y, float h, float w, const std::string& m) :
+		x(x),
+		y(y),
 		height(h),
 		width(w),
 		message(m)
@@ -60,23 +61,23 @@ struct Button {
 	void DrawButton() const {
 		int textWidth = MeasureText(message.c_str(), height / 3.0f);
 		Vector2 mousePos = GetMousePosition();
-		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { location.x, location.y, width, height })) {
-			DrawRectangle(location.x, location.y, width, height, clickColor);
-			DrawText(message.c_str(), location.x + (width - textWidth) / 2.0f, location.y + height / 3.0f, height / 3.0f, clickText);
+		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { x, y, width, height })) {
+			DrawRectangle(x, y, width, height, UI_BUTTON_CLKD);
+			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 3.0f, UI_BUTTON_CLKD_TXT);
 		}
-		else if (CheckCollisionPointRec(mousePos, { location.x, location.y, width, height })) {
-			DrawRectangle(location.x, location.y, width, height, hoverColor);
-			DrawText(message.c_str(), location.x + (width - textWidth) / 2.0f, location.y + height / 3.0f, height / 3.0f, hoverText);
+		else if (CheckCollisionPointRec(mousePos, { x, y, width, height })) {
+			DrawRectangle(x, y, width, height, UI_BUTTON_HVR);
+			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 3.0f, UI_BUTTON_HVR_TXT);
 		}
 		else {
-			DrawRectangle(location.x, location.y, width, height, unclickedColor);
-			DrawText(message.c_str(), location.x + (width - textWidth) / 2.0f, location.y + height / 3.0f, height / 3.0f, unclickedText);
+			DrawRectangle(x, y, width, height, UI_BUTTON_UNCLKD);
+			DrawText(message.c_str(), x + (width - textWidth) / 2.0f, y + height / 3.0f, height / 3.0f, UI_BUTTON_UNCLKD_TXT);
 		}
 	}
 
 	bool isClicked() const {
 		Vector2 mousePos = GetMousePosition();
-		return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { location.x, location.y, width, height });
+		return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { x, y, width, height });
 	}
 };
 
@@ -113,6 +114,7 @@ struct CheckBox {
 		return active;
 	}
 };
+
 // SIMULATION
 
 struct Body {
@@ -349,11 +351,12 @@ int main(void) {
 	// <--- Init UI --->
 	CheckBox vectorCheck(SIM_WIDTH + 250, 50);
 	CheckBox fieldCheck(SIM_WIDTH + 250, 100);
+	Button resetSim(SIM_WIDTH + 100, SIM_HEIGHT - 100, 50, 200, "Reset Sim");
 
 	while (!WindowShouldClose()) {
 
 		// <--- Update Sim --->
-		gravityField.updateForces(bodies);
+		if (showField) gravityField.updateForces(bodies);
 		showVectors = vectorCheck.isChecked();
 		showField = fieldCheck.isChecked();
 
@@ -367,6 +370,7 @@ int main(void) {
 		spawner.drawBody();
 
 		if (showField) gravityField.draw();
+		if (resetSim.isClicked()) bodies.clear();
 		
 
 		
@@ -445,6 +449,9 @@ int main(void) {
 		// Show Field Option
 		DrawText("Show Field", SIM_WIDTH + 50, 100, 25, UI_TEXT);
 		fieldCheck.draw();
+
+		// Show Reset Button
+		resetSim.DrawButton();
 
 		EndDrawing();
 	}
