@@ -127,36 +127,21 @@ struct Body {
 	Body(float mass, float radius, Vector2 velocity, Vector2 location) : mass(mass), radius(radius), velocity(velocity), location(location) {};
 
 	void draw() {
+
+		// Draw the body
 		DrawCircle(location.x, location.y, radius, SIM_BDY_COL);
 
 		if (showVectors) {
+
+			// Calculate endpoint of each component velocity vector, multiplied by a scalar for visibility.
 			Vector2 xVector = { location.x + velocity.x * VECTOR_DRAW_SCALE, location.y };
 			Vector2 yVector = { location.x, location.y + velocity.y * VECTOR_DRAW_SCALE };
 
-			if (xVector.x > SIM_WIDTH) {
-				DrawLine(location.x, location.y, SIM_WIDTH - 1.0f, xVector.y, RED);
-				DrawLine(0.0f, location.y, xVector.x - SIM_WIDTH, xVector.y, RED);
-			}
-			else if (xVector.x < 0.0f) {
-				DrawLine(location.x, location.y, 0.0f, xVector.y, RED);
-				DrawLine(SIM_WIDTH - 1.0f, location.y, SIM_WIDTH - (-xVector.x), location.y, RED);
-			}
-			else {
-				DrawLine(location.x, location.y, xVector.x, xVector.y, RED);
-			}
-			if (yVector.y > SIM_HEIGHT) {
-				DrawLine(location.x, location.y, location.x, SIM_HEIGHT - 1.0f, BLUE);
-				DrawLine(location.x, 0.0f, location.x, yVector.y - SIM_HEIGHT, BLUE);
-			}
-			else if (yVector.y < 0.0f) {
-				DrawLine(location.x, location.y, location.x, 0.0f, BLUE);
-				DrawLine(location.x, SIM_HEIGHT - 1.0f, location.x, SIM_HEIGHT - (-yVector.y), BLUE);
-			}
-			else {
-				DrawLine(location.x, location.y, yVector.x, yVector.y, BLUE);
-			}
+			// Draw each component velocity vector and the velocity vector
+			DrawLine(location.x, location.y, xVector.x, xVector.y, RED);
+			DrawLine(location.x, location.y, yVector.x, yVector.y, BLUE);
+			DrawLine(location.x, location.y, xVector.x, yVector.y, WHITE);
 		}
-
 	}
 
 	void update() {
