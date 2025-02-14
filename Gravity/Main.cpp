@@ -4,45 +4,47 @@
 #include <iostream>
 #include <cmath>
 
-const int SCREEN_WIDTH = 1400;
-const int SCREEN_HEIGHT = 1000;
+// Window Dimensions
+const int WIN_WIDTH = 1400;										// Width of Window
+const int WIN_HEIGHT = 1000;									// Height of Window
 
 // UI Parameters
-const Color UI_MENU_BG = GetColor(0x262626FF);
-const Color UI_CHECKBOX_BG = GetColor(0x3A3A3AFF);
-const Color UI_CHECKBOX_ACTIVE = GetColor(0xBB86FCFF);
-const Color UI_CHECKBOX_INACTIVE = GetColor(0x555555FF);
-const Color UI_TEXT = GetColor(0xE0E0E0FF);
-const Color UI_BUTTON_UNCLKD = GetColor(0xE0E0E0FF);
-const Color UI_BUTTON_UNCLKD_TXT = GetColor(0x333333FF);
-const Color UI_BUTTON_HVR = GetColor(0xBDBDBDFF);
-const Color UI_BUTTON_HVR_TXT = GetColor(0x000000FF);
-const Color UI_BUTTON_CLKD = GetColor(0x9E9E9EFF);
-const Color UI_BUTTON_CLKD_TXT = GetColor(0xFFFFFFFF);
+const Color UI_MENU_BG = GetColor(0x262626FF);					// Menu Background Color
+const Color UI_CHECKBOX_BG = GetColor(0x3A3A3AFF);				// Checkbox Background Color
+const Color UI_CHECKBOX_ACTIVE = GetColor(0xBB86FCFF);			// Active checkbox Color
+const Color UI_CHECKBOX_INACTIVE = GetColor(0x555555FF);		// Inactive checkbox Color
+const Color UI_TEXT = GetColor(0xE0E0E0FF);						// Default Text
+const Color UI_BUTTON_UNCLKD = GetColor(0xE0E0E0FF);			// Unclicked Button Color
+const Color UI_BUTTON_UNCLKD_TXT = GetColor(0x333333FF);		// Unclicked Button Text
+const Color UI_BUTTON_HVR = GetColor(0xBDBDBDFF);				// Hovered Button Color
+const Color UI_BUTTON_HVR_TXT = GetColor(0x000000FF);			// Hovered Button Text
+const Color UI_BUTTON_CLKD = GetColor(0x9E9E9EFF);				// Clicked Button Color
+const Color UI_BUTTON_CLKD_TXT = GetColor(0xFFFFFFFF);			// Clicked Button Text
 
 // Sim Parameters
-const int SIM_WIDTH = SCREEN_WIDTH - 400;
-const int SIM_HEIGHT = SCREEN_HEIGHT;
-const float SIM_WIDTH_HALF = SIM_WIDTH / 2.0f;
-const float SIM_HEIGHT_HALF = SIM_HEIGHT / 2.0f;
-const float G = 6.67430e-8;
-const float MIN_DISTANCE_SQUARED = 0.1f; // Threshold to avoid division by zero in calculations.
-const float VECTOR_DRAW_SCALE = 50.0f;
-const float GRID_SQUARE_SIZE = 5.0f;
-const Color SIM_BG_COL = GetColor(0x020202FF);
-const Color SIM_BDY_COL = GetColor(0xC9C9C9FF);
-const Color SIM_SPAWN_BDY_COL = GetColor(0xB09C02FF);
-const Color SIM_SPAWN_VEL_COL = GetColor(0xB09C02FF); //0xE3D98DFF
-bool showVectors = false;
-bool showField = false;
+const int SIM_WIDTH = WIN_WIDTH - 400;							// Width of simulation space
+const int SIM_HEIGHT = WIN_HEIGHT;								// Height of simulation space
+const float SIM_WIDTH_HALF = SIM_WIDTH / 2.0f;					// Half of simulation width
+const float SIM_HEIGHT_HALF = SIM_HEIGHT / 2.0f;				// Half of simulation height 
+const float G = 6.67430e-8;										// Gravitational Constant (Modified to fit simulation scale)
+const float MIN_DISTANCE_SQUARED = 0.1f;						// Threshold to avoid division by zero in force calculations.
+const float VECTOR_DRAW_SCALE = 50.0f;							// Scalar to draw vectors at visible lengths
+const float FIELD_CELL_SIZE = 5.0f;								// Size of Gravity Field cell (Low values reduce performance)
+const Color SIM_BG_COL = GetColor(0x020202FF);					// Sim Space background color
+const Color SIM_BDY_COL = GetColor(0xC9C9C9FF);					// Sim Space body color
+const Color SIM_SPAWN_BDY_COL = GetColor(0xB09C02FF);			// Spawn body color
+const Color SIM_SPAWN_VEL_COL = GetColor(0xB09C02FF);			// Spawn vector color
+bool showVectors = false;										// Control vector visibility
+bool showField = false;											// Control gravity field visibility
 
-enum State {
+enum State {													// State to track if user is spawning a body
 	DEFAULT,
-	DRAWING
-};
+	SPAWNING
+};											
 
-// UI
+// <--- UI --->
 
+// Defines Button UI Element
 struct Button {
 	const std::string message;
 	const float x;
@@ -50,6 +52,7 @@ struct Button {
 	const float width;
 	const float height;	
 
+	// Button Constructor
 	Button(float x, float y, float h, float w, const std::string& m) :
 		x(x),
 		y(y),
@@ -58,6 +61,7 @@ struct Button {
 		message(m)
 	{}
 
+	// Draw Button using raylib primitives
 	void DrawButton() const {
 		int textWidth = MeasureText(message.c_str(), height / 3.0f);
 		Vector2 mousePos = GetMousePosition();
@@ -75,12 +79,14 @@ struct Button {
 		}
 	}
 
+	// Return if button is clicked
 	bool isClicked() const {
 		Vector2 mousePos = GetMousePosition();
 		return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { x, y, width, height });
 	}
 };
 
+// Defines Checkbox UI Element
 struct CheckBox {
 	const float width = 26.0f;
 	const float height = 26.0f;
@@ -90,8 +96,10 @@ struct CheckBox {
 	float y;
 	bool active = false;
 
+	// Constructor
 	CheckBox(int x, int y) : x(x), y(y) {};
 
+	// Draw using raylib primitives
 	void draw() {
 		DrawRectangle(x, y, width, height, UI_CHECKBOX_BG);
 		if (active) {
@@ -102,6 +110,7 @@ struct CheckBox {
 		}
 	}
 
+	// Updates activity state of checkbox
 	void check() {
 		Vector2 mousePos = GetMousePosition();
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(mousePos, { x, y, width, height })) {
@@ -110,22 +119,26 @@ struct CheckBox {
 		}
 	}
 
+	// Returns checkbox activity state
 	bool isChecked() {
 		return active;
 	}
 };
 
-// SIMULATION
+// <--- SIMULATION --->
 
+// Defines Body Simulation Element
 struct Body {
 	float mass;
 	float radius;
 	Vector2 velocity;
 	Vector2 location;
-	Vector2 accumulatedForce = { 0.0f, 0.0f }; // Forces accumulated over a frame from each body
+	Vector2 accumulatedForce = { 0.0f, 0.0f }; // Forces accumulated over one frame from each body
 	
+	// Constructor
 	Body(float mass, float radius, Vector2 velocity, Vector2 location) : mass(mass), radius(radius), velocity(velocity), location(location) {};
 
+	// Draws body using raylib primitives
 	void draw() {
 
 		// Draw the body
@@ -144,7 +157,8 @@ struct Body {
 		}
 	}
 
-	void update() {
+	// Apply forces to body
+	void applyForce() {
 		// Apply accumulated force to velocity
 		velocity.x += accumulatedForce.x / mass;
 		velocity.y += accumulatedForce.y / mass;
@@ -159,11 +173,13 @@ struct Body {
 		location.y = fmod(SIM_HEIGHT + location.y, SIM_HEIGHT);
 	}
 
-	void applyForce(Vector2 force) {
+	// Accumulate forces over one frame
+	void accumulateForce(Vector2 force) {
 		accumulatedForce.x += force.x;
 		accumulatedForce.y += force.y;
 	}
 
+	// Calculate forces between two bodies
 	static Vector2 calculateGravitationalForce(const Body& body1, const Body& body2) {
 
 		// Precompute raw dx and dy for performance
@@ -187,6 +203,7 @@ struct Body {
 		return { (forceMag * dx / distanceMag), (forceMag * dy / distanceMag) };
 	}
 
+	// Check if two bodies are colliding
 	static bool checkCollision(const Body& body1, const Body& body2) {
 
 		// Precompute raw dx and dy to avoid redundant calculation
@@ -207,95 +224,107 @@ struct Body {
 	}
 };
 
-std::vector<Body> bodies;
-
+// Defines Body Spawing Behavior and UI
 struct bodySpawner {
-	State state = State::DEFAULT;
-	//Body* tempBody = nullptr;
-	Vector2 startLoc;
+	State state = State::DEFAULT; // Determines if we create a new body or grow the current new body
+	Vector2 spawnPos;
 	Vector2 velocity;
-	float lastMass = 0.0;
-	float lastRad = 0.0;
+	float spawnMass = 0.0;
+	float spawnRad = 0.0;
 
-
+	// Constructor
 	bodySpawner() {
-		startLoc = GetMousePosition();
+		spawnPos = GetMousePosition();
 		velocity = { 0.0f, 0.0f };
 	};
 
-	void drawBody() {
+	// Draw spawning elements and create new body
+	void drawBody(std::vector<Body>& bodies) {
+
+		// Only enter spawner if user is clicking
 		if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
 			Vector2 currMouseLoc = GetMousePosition();
+
+			// Ensure mouse is within simulation bounds
 			if (currMouseLoc.x < SIM_WIDTH) {
-				// If this is the first frame drawing something
+
+				// If not spawning new body already, start spawning
 				if (state == State::DEFAULT) {
 
 					// Initial Values
-					lastRad = 1.0f;
-					lastMass = 20000.0f;
-					startLoc = currMouseLoc;
+					spawnRad = 1.0f;
+					spawnMass = 20000.0f; // Mass per cubic pixel unit
+					spawnPos = currMouseLoc;
 					velocity = { 0.0f, 0.0f };
 
-					DrawCircle(startLoc.x, startLoc.y, lastRad, SIM_SPAWN_BDY_COL);
+					DrawCircle(spawnPos.x, spawnPos.y, spawnRad, SIM_SPAWN_BDY_COL);
 
-					state = State::DRAWING;
+					state = State::SPAWNING;
 				}
-				else if (state == State::DRAWING) {
+				// If already spawning new body
+				else if (state == State::SPAWNING) { 
 
-					// Update Values for tempBody
-					lastRad += 0.1f;
-					lastMass = (4.0f / 3.0f) * PI * (lastRad * lastRad * lastRad) * 20000.0f; // Mass is based on 10000 kg per pixel volume in a sphere.
+					// Update Values for new body
+					spawnRad += 0.1f;
+					spawnMass = (4.0f / 3.0f) * PI * (spawnRad * spawnRad * spawnRad) * 20000.0f; // Mass is based on 20000 kg per pixel volume in a sphere.
 
-					velocity = { (fabs(currMouseLoc.x) - fabs(startLoc.x)) * 0.01f, (fabs(currMouseLoc.y) - fabs(startLoc.y)) * 0.01f }; // Based of vector components of line from startLoc to currMouseLoc
+					velocity = { (fabs(currMouseLoc.x) - fabs(spawnPos.x)) * 0.01f, (fabs(currMouseLoc.y) - fabs(spawnPos.y)) * 0.01f }; // Based on vector components of line from startPos to currMouseLoc
 
-					DrawCircle(startLoc.x, startLoc.y, lastRad, SIM_SPAWN_BDY_COL);
-					DrawLine(startLoc.x, startLoc.y, currMouseLoc.x, currMouseLoc.y, SIM_SPAWN_VEL_COL);
+					DrawCircle(spawnPos.x, spawnPos.y, spawnRad, SIM_SPAWN_BDY_COL);
+					DrawLine(spawnPos.x, spawnPos.y, currMouseLoc.x, currMouseLoc.y, SIM_SPAWN_VEL_COL);
 				}
 			}
 		}
-		else if (state == State::DRAWING) {
-			state = State::DEFAULT;
-			bodies.push_back(Body(lastMass, lastRad, velocity, startLoc));
-			std::cout << "Mass: " << lastMass << " Velocity: " << sqrt((velocity.x * velocity.x) + (velocity.y * velocity.y)) << std::endl;
+		// If user is not clicking and was spawning last frame
+		else if (state == State::SPAWNING) { 
+
+			state = State::DEFAULT; // Set state back to default
+			bodies.push_back(Body(spawnMass, spawnRad, velocity, spawnPos)); // Add new body to bodies
+			
 		}
 	}
 };
 
-struct gridSquare {
+// Defines gravity field cell
+struct fieldCell {
 	float fieldStrength = 0.0f;
 	float x;
 	float y;
-	float width = GRID_SQUARE_SIZE;
-	float height = GRID_SQUARE_SIZE;
+	float width = FIELD_CELL_SIZE;
+	float height = FIELD_CELL_SIZE;
 
-	gridSquare() {};
-	gridSquare(float x, float y) : x(x), y(y) {};
+	fieldCell() {};
+	fieldCell(float x, float y) : x(x), y(y) {};
 };
 
-struct gravGrid {
-	int numSquares = SIM_WIDTH / GRID_SQUARE_SIZE;
-	std::vector<std::vector<gridSquare>> gridSquares;
+// Defines gravity field visualization
+struct fieldGrid {
 
-	gravGrid() {
-		gridSquares.resize(numSquares);
-		for (size_t row = 0; row < numSquares; ++row) {
-			gridSquares[row].resize(numSquares);
-			for (size_t col = 0; col < numSquares; ++col) {
-				gridSquares[row][col] = gridSquare(col * GRID_SQUARE_SIZE, row * GRID_SQUARE_SIZE);
+	int numCells = SIM_WIDTH / FIELD_CELL_SIZE; // Amount of cells that will fit in sim space
+	std::vector<std::vector<fieldCell>> fieldCells; // Vector holding all cells
+
+	// Constructer for grid
+	fieldGrid() {
+		fieldCells.resize(numCells);
+		for (size_t row = 0; row < numCells; ++row) {
+			fieldCells[row].resize(numCells);
+			for (size_t col = 0; col < numCells; ++col) {
+				fieldCells[row][col] = fieldCell(col * FIELD_CELL_SIZE, row * FIELD_CELL_SIZE);
 			}
 		}
 	}
 
+	// Find strength of gravitational acceleration in the center of the field cell
 	void updateForces(std::vector<Body>& bodies) {
-		for (auto& row : gridSquares) {
+		for (auto& row : fieldCells) {
 			for (auto& square : row) {
 				// Reset force to 0 for each frame
 				square.fieldStrength = 0.0f;
 				for (const auto& body : bodies) { // Get the force from each body
 
 					// Find closest distance to each body
-					float rawDx = square.x + GRID_SQUARE_SIZE / 2.0f - body.location.x;
-					float rawDy = square.y + GRID_SQUARE_SIZE / 2.0f -body.location.y;
+					float rawDx = square.x + FIELD_CELL_SIZE / 2.0f - body.location.x;
+					float rawDy = square.y + FIELD_CELL_SIZE / 2.0f -body.location.y;
 
 					// Accound for screen wrap-around if shortest distance is not screen-space.
 					float dx = std::min(std::fabs(rawDx), SIM_WIDTH - std::fabs(rawDx));
@@ -312,8 +341,9 @@ struct gravGrid {
 		}
 	}
 
+	// Draw the gravity field
 	void draw() {
-		for (const auto& row : gridSquares) {
+		for (const auto& row : fieldCells) {
 			for (const auto& square : row) {
 				float scaledStrength = square.fieldStrength * 1e2;
 				float normalizedStrength = std::min(1.0f, scaledStrength);
@@ -326,87 +356,94 @@ struct gravGrid {
 };
 
 int main(void) {
-	InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Gravity");
+	// Initialize simulation window
+	InitWindow(WIN_WIDTH, WIN_HEIGHT, "Gravity Toy");
 	SetTargetFPS(60);
 
-	// <--- Init Sim --->
+	// Initialize Sim Elements
 	bodySpawner spawner;
-	gravGrid gravityField;
+	fieldGrid gravityField;
+	std::vector<Body> bodies; // Vector Containing all existing bodies
 
-	// <--- Init UI --->
+	// Initialize UI Elements
 	CheckBox vectorCheck(SIM_WIDTH + 250, 50);
 	CheckBox fieldCheck(SIM_WIDTH + 250, 100);
 	Button resetSim(SIM_WIDTH + 100, SIM_HEIGHT - 100, 50, 200, "Reset Sim");
 
+	// Simulation Loop
 	while (!WindowShouldClose()) {
 
-		// <--- Update Sim --->
+		// Update Sim
 		if (showField) gravityField.updateForces(bodies);
 		showVectors = vectorCheck.isChecked();
 		showField = fieldCheck.isChecked();
 
-		// <--- Update UI --->
+		// Update UI
 		vectorCheck.check();
 		fieldCheck.check();
 
 		BeginDrawing();
 		ClearBackground(SIM_BG_COL);
 
-		spawner.drawBody();
+		// Enable Body Spawning
+		spawner.drawBody(bodies);
 
+		// Draw Vectors or Gravity Field
 		if (showField) gravityField.draw();
 		if (resetSim.isClicked()) bodies.clear();
 		
-
-		
-		
-		
-
-		// Iterate over each unique pair of bodies.
+		// Iterate over each unique pair of bodies
 		for (size_t i = 0; i < bodies.size(); i++) {
-			// Inner loop starts at i+1 so that each pair is only considered once.
+			
 			for (size_t j = i + 1; j < bodies.size(); ) {
+
+				// Handle Collisions
 				if (Body::checkCollision(bodies[i], bodies[j])) {
-					// Collision detected. Merge the two bodies.
-					if (bodies[i].mass >= bodies[j].mass) {
-						// Merge body j into body i
-						float combinedMass = bodies[i].mass + bodies[j].mass;
-						Vector2 combinedVelocity = {
+					
+					if (bodies[i].mass >= bodies[j].mass) { // Merge body j into body i
+						
+						// Calculate attributes of merged body
+						float combinedMass = bodies[i].mass + bodies[j].mass; 
+						Vector2 combinedVelocity = { 
 							(bodies[i].mass * bodies[i].velocity.x + bodies[j].mass * bodies[j].velocity.x) / combinedMass,
 							(bodies[i].mass * bodies[i].velocity.y + bodies[j].mass * bodies[j].velocity.y) / combinedMass
 						};
+
+						// Assign attributes
 						bodies[i].mass = combinedMass;
 						bodies[i].velocity = combinedVelocity;
 						bodies[i].radius = cbrt((3.0f * bodies[i].mass) / (4.0f * PI * 10000.0f));
 
-						// Remove body j
+						// Remove old body
 						bodies.erase(bodies.begin() + j);
-						// Note: Do NOT increment j because the next element has shifted into index j.
 					}
-					else {
-						// Merge body i into body j
+					else {	// Merge body i into body j
+						
+						// Calculate attributes of merged body
 						float combinedMass = bodies[i].mass + bodies[j].mass;
 						Vector2 combinedVelocity = {
 							(bodies[i].mass * bodies[i].velocity.x + bodies[j].mass * bodies[j].velocity.x) / combinedMass,
 							(bodies[i].mass * bodies[i].velocity.y + bodies[j].mass * bodies[j].velocity.y) / combinedMass
 						};
+
+						// Assign attributes
 						bodies[j].mass = combinedMass;
 						bodies[j].velocity = combinedVelocity;
 						bodies[j].radius = cbrt((3.0f * bodies[j].mass) / (4.0f * PI * 10000.0f));
 
-						// Remove body i and adjust outer loop index.
+						// Remove old body
 						bodies.erase(bodies.begin() + i);
+
 						// Since the current i is removed, decrement i (if possible) and break out of the inner loop.
 						if (i > 0) i--;
 						break;
 					}
 				}
-				else {
-					// No collision: apply gravitational force (calculated only once per unique pair).
+				else { // No collision: apply gravitational force.
+					
 					Vector2 force = Body::calculateGravitationalForce(bodies[i], bodies[j]);
-					bodies[i].applyForce(force);
-					bodies[j].applyForce({ -force.x, -force.y });
-					// Only increment j when no collision occurred.
+					bodies[i].accumulateForce(force);
+					bodies[j].accumulateForce({ -force.x, -force.y }); // equal and opposite force
 					j++;
 				}
 			}
@@ -414,14 +451,14 @@ int main(void) {
 
 		// Update and draw each body.
 		for (Body& body : bodies) {
-			body.update();
+			body.applyForce();
 			body.draw();
 		}
 
 		// <--- Draw UI --->
 		
 		// Menu Background
-		DrawRectangle(SIM_WIDTH, 0.0f, SCREEN_WIDTH - SIM_WIDTH, SCREEN_HEIGHT, UI_MENU_BG);
+		DrawRectangle(SIM_WIDTH, 0.0f, WIN_WIDTH - SIM_WIDTH, WIN_HEIGHT, UI_MENU_BG);
 
 		// Show framerate
 		int fps = GetFPS();
