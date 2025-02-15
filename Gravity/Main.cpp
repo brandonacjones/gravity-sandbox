@@ -470,6 +470,11 @@ int main(void) {
 		int fps = GetFPS();
 		DrawText(TextFormat("%i FPS", fps), 10, 10, 20, YELLOW);
 
+		// Show body count
+		if (bodies.size() == 1) { DrawText(TextFormat("%i BODY", bodies.size()), 10, 30, 20, GREEN); }
+		else { DrawText(TextFormat("%i BODIES", bodies.size()), 10, 30, 20, GREEN); }
+			
+
 		// Show Vectors option
 		DrawText("Show Vectors", SIM_WIDTH + 50, 50, 25, UI_TEXT);
 		vectorCheck.draw();
