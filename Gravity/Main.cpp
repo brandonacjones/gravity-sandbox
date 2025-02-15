@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 
 // Window Dimensions
 const int WIN_WIDTH = 1400;										// Width of Window
@@ -346,11 +347,45 @@ struct fieldGrid {
 		for (const auto& row : fieldCells) {
 			for (const auto& square : row) {
 				float scaledStrength = square.fieldStrength * fieldScalar * fieldScalar;
-				float normalizedStrength = std::min(1.0f, scaledStrength);
+				float normalizedStrength = std::clamp(scaledStrength, 0.01f, 1.0f);
 				
-				Color color = ColorFromNormalized({ normalizedStrength, 0.0f , 1.0f / normalizedStrength, normalizedStrength });
-				DrawRectangle(square.x, square.y, square.width, square.height, color);
+				Color color = ColorFromNormalized({ normalizedStrength, 0.0f , 1.0f / normalizedStrength, 1.0f });
+				DrawRectangle(square.x, square.y, square.width, square.height, getFieldColor(normalizedStrength));
 			}
+		}
+	}
+
+	// Generate heat map colors based on normalized value
+	Color getFieldColor(float norm) {
+
+		// Because the normalized force follows the inverse square law, halving the distance between bodies increases the force by a factor of 4
+		// so we visualize based on the square root of this force, meaning that force grows linearly with distance. This creates a more even
+		// distribution of values for the heatmap.
+		norm = std::cbrtf(norm);
+
+		if (norm <= 0.2f) {
+			float tmp = norm * 5;  
+			return ColorFromNormalized({ 0.0f, 0.0f, tmp, 1.0f }); // black to blue
+		}
+		else if (norm <= 0.4f) {
+			float tmp = (norm - 0.2f) * 5; 
+			return ColorFromNormalized({ 0.0f, tmp, 1.0f, 1.0f }); // blue to cyan
+		}
+		else if (norm <= 0.6f) {
+			float tmp = (norm - 0.4f) * 5;
+			return ColorFromNormalized({ 0.0f, 1.0f, 1.0f - tmp, 1.0f }); // cyan to green
+		}
+		else if (norm <= 0.8f) {
+			float tmp = (norm - 0.6f) * 5;
+			return ColorFromNormalized({ tmp, 1.0f, 0.0f, 1.0f }); // green to yellow
+		}
+		else if (norm <= 0.95f) {
+			float tmp = (norm - 0.8f) / 0.15f;
+			return ColorFromNormalized({ 1.0f, 1.0f - tmp, 0.0f, 1.0f }); // yellow to red
+		}
+		else {
+			float tmp = (norm - 0.95f) / 0.05f;
+			return ColorFromNormalized({ 1.0f, 0.0f, tmp, 1.0f }); // red to pink
 		}
 	}
 };
