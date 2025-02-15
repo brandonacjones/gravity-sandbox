@@ -8,11 +8,12 @@ A 2D gravitational simulation using C++ and the Raylib library. This project sim
 * **Collision Detection**: Bodies merge upon collision, conserving momentum and mass.
 * **UI Elements**: Includes a graphical menu for adjusting simulation parameters.
 * **Vector Visualization**: Option to show velocity vectors for each body.
+* **Gravity Field Heatmap**: Option to show a heatmap representing the total gravitational force at any point in the simulation space.
 * **Screen Wrapping**: Bodies wrap around the screen edges, with physical interactions properly accounting for toroidal space.
 
 ### Installation
 ##### Prerequisites
-* C++ compiler with C++ 11 or higher.
+* C++ compiler with C++ 17 or higher.
 * Raylib 5.5 installed.
 
 ##### Steps: **WIP** - ***Proper setup not yet included in this README***
