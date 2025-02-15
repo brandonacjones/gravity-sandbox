@@ -36,6 +36,7 @@ const Color SIM_SPAWN_BDY_COL = GetColor(0xB09C02FF);			// Spawn body color
 const Color SIM_SPAWN_VEL_COL = GetColor(0xB09C02FF);			// Spawn vector color
 bool showVectors = false;										// Control vector visibility
 bool showField = false;											// Control gravity field visibility
+bool showLabels = true;										// Toggle Mass and Velocity Label
 int fieldScalar = 6;											// Gravity field visualization sensitivity
 int vectorScalar = 50;											// Scalar to draw vectors at visible lengths
 enum State {													// State to track if user is spawning a body
@@ -155,6 +156,46 @@ struct Body {
 			DrawLine(location.x, location.y, xVector.x, xVector.y, RED);
 			DrawLine(location.x, location.y, yVector.x, yVector.y, BLUE);
 			DrawLine(location.x, location.y, xVector.x, yVector.y, WHITE);
+		}
+
+		if (showLabels) {
+
+			// Resultant vector of velocity
+			float resultantVector = std::sqrtf((velocity.x * velocity.x) + (velocity.y * velocity.y));
+
+			// Label Text
+			std::string labelText = "M: " + std::to_string(mass) + " V: " + std::to_string(resultantVector);
+			int labelWidth = MeasureText(labelText.c_str(), 20); // Width of label
+
+			
+			// Label line end point
+			Vector2 labelEndpoint = { location.x + radius + 20.0f, location.y - radius - 20.0f };
+
+			// Draw Label, ensuring it displays inside sim bounds
+			if (labelEndpoint.x + labelWidth < SIM_WIDTH && labelEndpoint.y - 25.f > 0.0f) { // Already within bounds
+				DrawLine(location.x + radius, location.y - radius, labelEndpoint.x, labelEndpoint.y, WHITE);
+				DrawRectangle(labelEndpoint.x, labelEndpoint.y - 25, labelWidth, 25, ColorFromNormalized({ 0.0f, 0.0f, 0.0f, 0.5f }));
+				DrawText(labelText.c_str(), labelEndpoint.x, labelEndpoint.y - 22, 20, UI_TEXT);
+			}
+			else if (labelEndpoint.x + labelWidth > SIM_WIDTH && labelEndpoint.y - 25.f < 0.0f) { // Crossing top and right border
+				labelEndpoint.x = location.x - radius - 20.0f;
+				labelEndpoint.y = location.y + radius + 20.0f;
+				DrawLine(location.x - radius, location.y + radius, labelEndpoint.x, labelEndpoint.y, WHITE);
+				DrawRectangle(labelEndpoint.x - labelWidth, labelEndpoint.y, labelWidth, 25, ColorFromNormalized({ 0.0f, 0.0f, 0.0f, 0.5f }));
+				DrawText(labelText.c_str(), labelEndpoint.x - labelWidth, labelEndpoint.y + 2, 20, UI_TEXT);
+			}
+			else if (labelEndpoint.x + labelWidth > SIM_WIDTH) { // Just crossing right border
+				labelEndpoint.x = location.x - radius - 20.0f;
+				DrawLine(location.x - radius, location.y - radius, labelEndpoint.x, labelEndpoint.y, WHITE);
+				DrawRectangle(labelEndpoint.x - labelWidth, labelEndpoint.y - 25, labelWidth, 25, ColorFromNormalized({ 0.0f, 0.0f, 0.0f, 0.5f }));
+				DrawText(labelText.c_str(), labelEndpoint.x - labelWidth, labelEndpoint.y - 22, 20, UI_TEXT);
+			}
+			else if (labelEndpoint.y - 25.0f < 0.0f) { // Just crossing top border
+				labelEndpoint.y = location.y + radius + 20.0f;
+				DrawLine(location.x + radius, location.y + radius, labelEndpoint.x, labelEndpoint.y, WHITE);
+				DrawRectangle(labelEndpoint.x, labelEndpoint.y, labelWidth, 25, ColorFromNormalized({ 0.0f, 0.0f, 0.0f, 0.5f }));
+				DrawText(labelText.c_str(), labelEndpoint.x, labelEndpoint.y + 2, 20, UI_TEXT);
+			}
 		}
 	}
 
@@ -403,10 +444,11 @@ int main(void) {
 	// Initialize UI Elements
 	CheckBox vectorCheck(SIM_WIDTH + 250, 50);
 	CheckBox fieldCheck(SIM_WIDTH + 250, 100);
-	Button minusFieldStrength(SIM_WIDTH + 50, 193, 40, 40, "-");
-	Button plusFieldStrength(SIM_WIDTH + 300, 193, 40, 40, "+");
-	Button minusVectorStrength(SIM_WIDTH + 50, 293, 40, 40, "-");
-	Button plusVectorStrength(SIM_WIDTH + 300, 293, 40, 40, "+");
+	CheckBox labelCheck(SIM_WIDTH + 250, 150);
+	Button minusFieldStrength(SIM_WIDTH + 50, 243, 40, 40, "-");
+	Button plusFieldStrength(SIM_WIDTH + 300, 243, 40, 40, "+");
+	Button minusVectorStrength(SIM_WIDTH + 50, 343, 40, 40, "-");
+	Button plusVectorStrength(SIM_WIDTH + 300, 343, 40, 40, "+");
 	Button resetSim(SIM_WIDTH + 100, SIM_HEIGHT - 100, 50, 200, "Reset Sim");
 
 	// Simulation Loop
@@ -416,10 +458,12 @@ int main(void) {
 		if (showField) gravityField.updateForces(bodies);
 		showVectors = vectorCheck.isChecked();
 		showField = fieldCheck.isChecked();
+		showLabels = labelCheck.isChecked();
 
 		// Update UI
 		vectorCheck.check();
 		fieldCheck.check();
+		labelCheck.check();
 
 		// Listen for field scalar adjustment
 		if (minusFieldStrength.isClicked() && fieldScalar > 1) fieldScalar -= 1;
@@ -524,16 +568,20 @@ int main(void) {
 		DrawText("Show Field", SIM_WIDTH + 50, 100, 25, UI_TEXT);
 		fieldCheck.draw();
 
+		// Show Label Option
+		DrawText("Show Labels", SIM_WIDTH + 50, 150, 25, UI_TEXT);
+		labelCheck.draw();
+
 		// Show Field Strength
-		DrawText("Field Strength Scalar", SIM_WIDTH + 50, 150, 25, UI_TEXT);
+		DrawText("Field Strength Scalar", SIM_WIDTH + 50, 200, 25, UI_TEXT);
 		minusFieldStrength.DrawButton();
-		DrawText(TextFormat("%i ^ 2", fieldScalar), SIM_WIDTH + 175, 200, 25, UI_TEXT);
+		DrawText(TextFormat("%i ^ 2", fieldScalar), SIM_WIDTH + 175, 250, 25, UI_TEXT);
 		plusFieldStrength.DrawButton();
 
 		// Show Vector Strength
-		DrawText("Vector Size Scalar", SIM_WIDTH + 50, 250, 25, UI_TEXT);
+		DrawText("Vector Size Scalar", SIM_WIDTH + 50, 300, 25, UI_TEXT);
 		minusVectorStrength.DrawButton();
-		DrawText(TextFormat("%i", vectorScalar), SIM_WIDTH + 175, 300, 25, UI_TEXT);
+		DrawText(TextFormat("%i", vectorScalar), SIM_WIDTH + 175, 350, 25, UI_TEXT);
 		plusVectorStrength.DrawButton();
 
 		// Show Reset Button
