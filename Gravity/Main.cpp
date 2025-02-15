@@ -29,7 +29,6 @@ const float SIM_WIDTH_HALF = SIM_WIDTH / 2.0f;					// Half of simulation width
 const float SIM_HEIGHT_HALF = SIM_HEIGHT / 2.0f;				// Half of simulation height 
 const float G = 6.67430e-8;										// Gravitational Constant (Modified to fit simulation scale)
 const float MIN_DISTANCE_SQUARED = 0.1f;						// Threshold to avoid division by zero in force calculations.
-const float VECTOR_DRAW_SCALE = 50.0f;							// Scalar to draw vectors at visible lengths
 const float FIELD_CELL_SIZE = 5.0f;								// Size of Gravity Field cell (Low values reduce performance)
 const Color SIM_BG_COL = GetColor(0x020202FF);					// Sim Space background color
 const Color SIM_BDY_COL = GetColor(0xC9C9C9FF);					// Sim Space body color
@@ -37,7 +36,8 @@ const Color SIM_SPAWN_BDY_COL = GetColor(0xB09C02FF);			// Spawn body color
 const Color SIM_SPAWN_VEL_COL = GetColor(0xB09C02FF);			// Spawn vector color
 bool showVectors = false;										// Control vector visibility
 bool showField = false;											// Control gravity field visibility
-int fieldScalar = 1;											// Gravity field visualization sensitivity
+int fieldScalar = 6;											// Gravity field visualization sensitivity
+int vectorScalar = 50;											// Scalar to draw vectors at visible lengths
 enum State {													// State to track if user is spawning a body
 	DEFAULT,
 	SPAWNING
@@ -148,8 +148,8 @@ struct Body {
 		if (showVectors) {
 
 			// Calculate endpoint of each component velocity vector, multiplied by a scalar for visibility.
-			Vector2 xVector = { location.x + velocity.x * VECTOR_DRAW_SCALE, location.y };
-			Vector2 yVector = { location.x, location.y + velocity.y * VECTOR_DRAW_SCALE };
+			Vector2 xVector = { location.x + velocity.x * vectorScalar, location.y };
+			Vector2 yVector = { location.x, location.y + velocity.y * vectorScalar };
 
 			// Draw each component velocity vector and the velocity vector
 			DrawLine(location.x, location.y, xVector.x, xVector.y, RED);
@@ -403,8 +403,10 @@ int main(void) {
 	// Initialize UI Elements
 	CheckBox vectorCheck(SIM_WIDTH + 250, 50);
 	CheckBox fieldCheck(SIM_WIDTH + 250, 100);
-	Button minusFieldStrength(SIM_WIDTH + 50, 200, 40, 40, "-");
-	Button plusFieldStrength(SIM_WIDTH + 300, 200, 40, 40, "+");
+	Button minusFieldStrength(SIM_WIDTH + 50, 193, 40, 40, "-");
+	Button plusFieldStrength(SIM_WIDTH + 300, 193, 40, 40, "+");
+	Button minusVectorStrength(SIM_WIDTH + 50, 293, 40, 40, "-");
+	Button plusVectorStrength(SIM_WIDTH + 300, 293, 40, 40, "+");
 	Button resetSim(SIM_WIDTH + 100, SIM_HEIGHT - 100, 50, 200, "Reset Sim");
 
 	// Simulation Loop
@@ -422,6 +424,10 @@ int main(void) {
 		// Listen for field scalar adjustment
 		if (minusFieldStrength.isClicked() && fieldScalar > 1) fieldScalar -= 1;
 		if (plusFieldStrength.isClicked()) fieldScalar += 1;
+
+		// Listen for vector scalar adjustment
+		if (minusVectorStrength.isClicked() && vectorScalar > 10) vectorScalar -= 10;
+		if (plusVectorStrength.isClicked()) vectorScalar += 10;
 
 		BeginDrawing();
 		ClearBackground(SIM_BG_COL);
@@ -523,6 +529,12 @@ int main(void) {
 		minusFieldStrength.DrawButton();
 		DrawText(TextFormat("%i ^ 2", fieldScalar), SIM_WIDTH + 175, 200, 25, UI_TEXT);
 		plusFieldStrength.DrawButton();
+
+		// Show Vector Strength
+		DrawText("Vector Size Scalar", SIM_WIDTH + 50, 250, 25, UI_TEXT);
+		minusVectorStrength.DrawButton();
+		DrawText(TextFormat("%i", vectorScalar), SIM_WIDTH + 175, 300, 25, UI_TEXT);
+		plusVectorStrength.DrawButton();
 
 		// Show Reset Button
 		resetSim.DrawButton();
