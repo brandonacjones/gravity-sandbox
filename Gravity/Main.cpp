@@ -3,6 +3,8 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <sstream>
+#include <iomanip>
 #include <algorithm>
 
 // Window Dimensions
@@ -163,8 +165,18 @@ struct Body {
 			// Resultant vector of velocity
 			float resultantVector = std::sqrtf((velocity.x * velocity.x) + (velocity.y * velocity.y));
 
+			// Convert mass and resultant velocity vector to scientific notation
+			std::stringstream stream;
+			stream << std::scientific << std::setprecision(2) << resultantVector;
+			std::string velScientific = stream.str();
+			stream.str("");
+			stream.clear();
+
+			stream << std::scientific << std::setprecision(2) << mass;
+			std::string massScientific = stream.str();
+
 			// Label Text
-			std::string labelText = "M: " + std::to_string(mass) + " V: " + std::to_string(resultantVector);
+			std::string labelText = "M: " + massScientific + " V: " + velScientific;
 			int labelWidth = MeasureText(labelText.c_str(), 20); // Width of label
 
 			
