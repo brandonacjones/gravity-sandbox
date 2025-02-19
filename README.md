@@ -6,17 +6,21 @@ A 2D gravitational simulation using C++ and the Raylib library. This project sim
 ### Features
 * **Realistic Gravity Calculation**: Based on Newton's Law of Universal Gravitation.
 * **Collision Detection**: Bodies merge upon collision, conserving momentum and mass.
+ ![collision gif](basic.gif)
 * **UI Elements**: Includes a graphical menu for adjusting simulation parameters.
 * **Vector Visualization**: Option to show velocity vectors for each body.
 * **Gravity Field Heatmap**: Option to show a heatmap representing the total gravitational force at any point in the simulation space.
+ ![field gif](heat.gif)
+###### ***This gif shows color artifacts appearing due to compression that are not present in the actual program.***
 * **Screen Wrapping**: Bodies wrap around the screen edges, with physical interactions properly accounting for toroidal space.
 
 ### Installation
 ##### Prerequisites
 * C++ compiler with C++ 17 or higher.
 * Raylib 5.5 installed.
+* *** Your device must support OpenGL. ***
 
-##### Steps: **WIP** - ***Proper setup not yet included in this README***
+##### Steps: 
 
 1. Clone the repository.
 ```git clone [github.com/brandonacjones/gravity-sandbox]```
@@ -32,10 +36,14 @@ A 2D gravitational simulation using C++ and the Raylib library. This project sim
 
 ### Code Structure
 * ##### **Main Components:**
-     * `Body`: Represents celestial bodies with mass, radius, velocity, and position.
+     * ###### UI
      * `Button`: Custom UI button class for user interaction.
      * `CheckBox`: Toggle button class for user interaction.
+     * ###### Simulation
+     * `Body`: Represents celestial bodies with mass, radius, velocity, and position.
      * `bodySpawner`: Handles creation of new bodies.
+     * `fieldCell`: Represents each grid unit of the gravity field heatmap.
+     * `fieldGrid`: Handles the rendering and calculations of the heatmap.
 * ##### **Key Functions:**
      * `calculateGravitationalForce`: Computes force between two bodies.
      * `checkCollision`: Detects if bodies collide, leading to merging.
